@@ -14,10 +14,7 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -31,6 +28,8 @@ import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import com.google.common.util.concurrent.RateLimiter;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * Takes in SegmentedScanResults and launches several DynamoDBConsumerWorker for
@@ -41,17 +40,20 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
     private final AmazonDynamoDBClient client;
     private final String tableName;
     private final RateLimiter rateLimiter;
+    private static final Logger LOGGER = LogManager
+            .getLogger(DynamoDBConsumer.class);
 
     /**
      * Class to consume logs and write them to a DynamoDB table.
      */
     public DynamoDBConsumer(AmazonDynamoDBClient client, String tableName,
             double rateLimit, ExecutorService exec) {
+        LOGGER.info(String.format("rateLimit %s", rateLimit));
         this.client = client;
         this.tableName = tableName;
         this.rateLimiter = RateLimiter.create(rateLimit);
         super.threadPool = exec;
-        super.exec = new ExecutorCompletionService<Void>(threadPool);
+        super.exec = new ExecutorCompletionService<Integer>(threadPool);
     }
 
     /**
@@ -60,8 +62,9 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
      * ExecutorService.
      */
     @Override
-    public Future<Void> writeResult(SegmentedScanResult result) {
-        Future<Void> jobSubmission = null;
+    public List<Future<Integer>> writeResult(SegmentedScanResult result) {
+        Future<Integer> jobSubmission = null;
+        List<Future<Integer>> futureList = new ArrayList<>();
         List<BatchWriteItemRequest> batches = splitResultIntoBatches(
                 result.getScanResult(), tableName);
         Iterator<BatchWriteItemRequest> batchesIterator = batches.iterator();
@@ -70,12 +73,13 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
                 jobSubmission = exec
                         .submit(new DynamoDBConsumerWorker(batchesIterator
                                 .next(), client, rateLimiter, tableName));
+                //futureList.add(jobSubmission);
             } catch (NullPointerException npe) {
                 throw new NullPointerException(
                         "Thread pool not initialized for LogStashExecutor");
             }
         }
-        return jobSubmission;
+        return futureList;
     }
 
     /**

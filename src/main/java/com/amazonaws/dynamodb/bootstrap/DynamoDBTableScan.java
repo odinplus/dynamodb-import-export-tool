@@ -14,16 +14,26 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import java.io.FileInputStream;
+import java.io.ObjectInputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
+import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.google.common.util.concurrent.RateLimiter;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * Class to execute a parallel scan on a DynamoDB table.
  */
 public class DynamoDBTableScan {
+
+    private static final Logger LOGGER = LogManager
+            .getLogger(DynamoDBTableScan.class);
 
     private final RateLimiter rateLimiter;
     private final AmazonDynamoDBClient client;
@@ -53,6 +63,16 @@ public class DynamoDBTableScan {
         final ParallelScanExecutor completion = new ParallelScanExecutor(
                 executor, segments);
 
+        Map<Integer, ScanResult> resultMap = new HashMap<>();
+        try {
+            FileInputStream fis = new FileInputStream("map.ser");
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            resultMap.putAll((Map<Integer, ScanResult>) ois.readObject());
+            ois.close();
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
+        }
+
         int sectionSize = segments / totalSections;
         int start = sectionSize * section;
         int end = start + sectionSize;
@@ -63,6 +83,9 @@ public class DynamoDBTableScan {
         for (int segment = start; segment < end; segment++) {
             ScanRequest scanSegment = copyScanRequest(initialRequest)
                     .withTotalSegments(segments).withSegment(segment);
+            if (resultMap.containsKey(segment)) {
+                scanSegment = scanSegment.withExclusiveStartKey(resultMap.get(segment).getLastEvaluatedKey());
+            }
             completion.addWorker(new ScanSegmentWorker(this.client,
                     this.rateLimiter, scanSegment), segment);
         }

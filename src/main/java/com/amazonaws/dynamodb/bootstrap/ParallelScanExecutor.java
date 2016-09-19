@@ -14,11 +14,21 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import com.amazonaws.services.dynamodbv2.model.ScanResult;
+import com.amazonaws.transform.MapEntry;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This class executes multiple scan requests on one segment of a table in
@@ -30,6 +40,13 @@ public class ParallelScanExecutor {
     private final BitSet finished;
     private final ScanSegmentWorker[] workers;
     private final ExecutorCompletionService<SegmentedScanResult> exec;
+    private final Map<Integer, ScanResult> previousResultMap = new HashMap<>();
+    private final Map<Integer, ScanResult> resultMap = new HashMap<>();
+    private AtomicInteger count = new AtomicInteger(0);
+    private AtomicInteger previousCount = new AtomicInteger(0);
+
+    private static final Logger LOGGER = LogManager
+            .getLogger(ParallelScanExecutor.class);
 
     public ParallelScanExecutor(Executor executor, int segments) {
         this.exec = new ExecutorCompletionService<SegmentedScanResult>(executor);
@@ -83,6 +100,23 @@ public class ParallelScanExecutor {
             finishSegment(segment);
         }
 
+        ScanResult result = ret.get().getScanResult();
+        count.addAndGet(result.getScannedCount());
+        resultMap.put(segment, result);
+        LOGGER.info(String.format("count = %s", count));
+        if (count.get() > previousCount.get()+100000) {
+            if (!previousResultMap.isEmpty()) {
+                try {
+                    FileOutputStream fos = new FileOutputStream("/tmp/map.ser");
+                    ObjectOutputStream oos = new ObjectOutputStream(fos);
+                    oos.writeObject(resultMap);
+                    oos.close();
+                } catch (Exception e) {
+                    LOGGER.error(e.getMessage());
+                }
+            }
+            previousResultMap.putAll(resultMap);
+        }
         return ret.get();
     }
 

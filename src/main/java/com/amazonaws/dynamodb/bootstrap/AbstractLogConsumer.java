@@ -14,6 +14,7 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import java.util.List;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -30,7 +31,7 @@ import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
  */
 public abstract class AbstractLogConsumer {
 
-    public ExecutorCompletionService<Void> exec;
+    public ExecutorCompletionService<Integer> exec;
     protected ExecutorService threadPool;
 
     /**
@@ -47,7 +48,7 @@ public abstract class AbstractLogConsumer {
      *            the SegmentedScanResult to asynchronously write to another
      *            endpoint.
      */
-    public abstract Future<Void> writeResult(SegmentedScanResult result);
+    public abstract List<Future<Integer>> writeResult(SegmentedScanResult result);
 
     /**
      * Shuts the thread pool down.

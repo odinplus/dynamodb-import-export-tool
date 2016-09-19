@@ -14,6 +14,8 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorCompletionService;
@@ -39,19 +41,21 @@ public class BlockingQueueConsumer extends AbstractLogConsumer {
             numThreads = numProcessors;
         }
         this.threadPool = Executors.newFixedThreadPool(numThreads);
-        this.exec = new ExecutorCompletionService<Void>(threadPool);
+        this.exec = new ExecutorCompletionService<Integer>(threadPool);
     }
 
     @Override
-    public Future<Void> writeResult(SegmentedScanResult result) {
-        Future<Void> jobSubmission = null;
+    public List<Future<Integer>> writeResult(SegmentedScanResult result) {
+        Future<Integer> jobSubmission = null;
+        List<Future<Integer>> futureList = new ArrayList<>();
         try {
             jobSubmission = exec.submit(new BlockingQueueWorker(queue, result));
+            futureList.add(jobSubmission);
         } catch (NullPointerException npe) {
             throw new NullPointerException(
                     "Thread pool not initialized for LogStashExecutor");
         }
-        return jobSubmission;
+        return futureList;
     }
 
     /**

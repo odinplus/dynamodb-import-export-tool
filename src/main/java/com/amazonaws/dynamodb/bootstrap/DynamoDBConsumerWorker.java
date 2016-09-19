@@ -22,22 +22,24 @@ import java.util.concurrent.Callable;
 
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
-import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
-import com.amazonaws.services.dynamodbv2.model.ConsumedCapacity;
-import com.amazonaws.services.dynamodbv2.model.WriteRequest;
+import com.amazonaws.services.dynamodbv2.model.*;
 import com.google.common.util.concurrent.RateLimiter;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * Callable class that is used to write a batch of items to DynamoDB with exponential backoff.
  */
-public class DynamoDBConsumerWorker implements Callable<Void> {
-
+public class DynamoDBConsumerWorker implements Callable<Integer> {
     private final AmazonDynamoDBClient client;
     private final RateLimiter rateLimiter;
     private long exponentialBackoffTime;
     private BatchWriteItemRequest batch;
     private final String tableName;
+    private int total_processed=0;
+
+    private static final Logger LOGGER = LogManager
+            .getLogger(DynamoDBConsumerWorker.class);
 
     /**
      * Callable class that when called will try to write a batch to a DynamoDB
@@ -59,7 +61,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
      * permits equal to the consumed capacity of the write.
      */
     @Override
-    public Void call() {
+    public Integer call() {
         List<ConsumedCapacity> batchResult = runWithBackoff(batch);
         Iterator<ConsumedCapacity> it = batchResult.iterator();
         int consumedCapacity = 0;
@@ -67,7 +69,8 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
             consumedCapacity += it.next().getCapacityUnits().intValue();
         }
         rateLimiter.acquire(consumedCapacity);
-        return null;
+        //LOGGER.info(consumedCapacity);
+        return total_processed;
     }
 
     /**
@@ -80,14 +83,42 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
         List<ConsumedCapacity> consumedCapacities = new LinkedList<ConsumedCapacity>();
         Map<String, List<WriteRequest>> unprocessedItems = null;
         boolean interrupted = false;
+        total_processed = 0;
         try {
             do {
-                writeItemResult = client.batchWriteItem(req);
-                unprocessedItems = writeItemResult.getUnprocessedItems();
+                writeItemResult = null;
+                while (writeItemResult == null) {
+                    try {
+                        writeItemResult = client.batchWriteItem(req);
+                    } catch (ProvisionedThroughputExceededException e) {
+                        LOGGER.info(String.format("%s %s", e.getMessage(), req));
+                        try {
+                            LOGGER.info(String.format("Sleeping %s %s", exponentialBackoffTime, (writeItemResult == null)));
+                            Thread.sleep(exponentialBackoffTime);
+                        } catch (InterruptedException ie) {
+                            interrupted = true;
+                        } finally {
+                            exponentialBackoffTime *= 2;
+                            if (exponentialBackoffTime > BootstrapConstants.MAX_EXPONENTIAL_BACKOFF_TIME) {
+                                exponentialBackoffTime = BootstrapConstants.MAX_EXPONENTIAL_BACKOFF_TIME;
+                            }
+                        }
+                    }
+                }
+                    unprocessedItems = writeItemResult.getUnprocessedItems();
+                int total_unprocessed = 0;
+                for (List<WriteRequest> list : req.getRequestItems().values()) {
+                    total_processed += list.size();
+                }
+
                 consumedCapacities
                         .addAll(writeItemResult.getConsumedCapacity());
 
                 if (unprocessedItems != null) {
+                    for (List<WriteRequest> list : unprocessedItems.values()) {
+                        total_unprocessed += list.size();
+                    }
+                    total_processed -= total_unprocessed;
                     req.setRequestItems(unprocessedItems);
                     try {
                         Thread.sleep(exponentialBackoffTime);

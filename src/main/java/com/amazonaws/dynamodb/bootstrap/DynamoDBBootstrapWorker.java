@@ -14,9 +14,9 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.dynamodb.bootstrap.exception.NullReadCapacityException;
@@ -26,6 +26,8 @@ import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughputDescription;
 import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.TableDescription;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * The base class to start a parallel scan and connect the results with a
@@ -39,6 +41,10 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
     private int section;
     private int totalSections;
     private final boolean consistentScan;
+
+    private static final Logger LOGGER = LogManager
+            .getLogger(DynamoDBBootstrapWorker.class);
+
 
     /**
      * Creates the DynamoDBBootstrapWorker, calculates the number of segments a
@@ -100,6 +106,8 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
      */
     public void pipe(final AbstractLogConsumer consumer)
             throws ExecutionException, InterruptedException {
+        LOGGER.info(String.format("numSegments %s", numSegments));
+
         final DynamoDBTableScan scanner = new DynamoDBTableScan(rateLimit,
                 client);
 
@@ -112,13 +120,29 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
                 .getParallelScanCompletionService(request, numSegments,
                         threadPool, section, totalSections);
 
+        List<Future<Integer>> futureList = new ArrayList<>();
         while (!scanService.finished()) {
             SegmentedScanResult result = scanService.grab();
-            consumer.writeResult(result);
+            //LOGGER.info(result.getSegment());
+            //LOGGER.info(result.getScanResult().getScannedCount());
+            /*List<Future<Integer>> anotherFutureList =*/ consumer.writeResult(result);
+            //futureList.addAll(anotherFutureList);
+            //CompletionService<Integer> ecs = new ExecutorCompletionService<Integer>(e);
+            //LOGGER.info(f.get());
         }
 
         shutdown(true);
         consumer.shutdown(true);
+
+        /*int c =0;
+        for (Future<Integer> future : futureList){
+            if (future.isDone()){
+                c+=future.get();
+            } else {
+                LOGGER.info(future.isCancelled());
+            }
+        }
+        LOGGER.info(String.format("c = %s", c));*/
     }
 
     /**

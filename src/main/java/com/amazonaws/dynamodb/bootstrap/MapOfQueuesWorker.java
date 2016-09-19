@@ -14,36 +14,35 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.BlockingQueue;
-
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.ScanResult;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 
 /**
  * This class implements Callable, and when called iterates through it's
  * SegmentedScanResult, then pushes each item with it's size onto a blocking
  * queue.
  */
-public class BlockingQueueWorker implements Callable<Integer> {
+public class MapOfQueuesWorker implements Callable<Integer> {
 
     /**
      * Logger for the LogStashQueueWorker.
      */
     private static final Logger LOGGER = LogManager
-            .getLogger(BlockingQueueWorker.class);
+            .getLogger(MapOfQueuesWorker.class);
 
-    private final BlockingQueue<DynamoDBEntryWithSize> queue;
+    private final List<BlockingQueue<Map<String, AttributeValue>>> queue;
     private final SegmentedScanResult result;
 
-    public BlockingQueueWorker(BlockingQueue<DynamoDBEntryWithSize> queue,
-            SegmentedScanResult result) {
+    public MapOfQueuesWorker(List<BlockingQueue<Map<String, AttributeValue>>> queue,
+                             SegmentedScanResult result) {
         this.queue = queue;
         this.result = result;
     }
@@ -52,27 +51,16 @@ public class BlockingQueueWorker implements Callable<Integer> {
     public Integer call() {
         final ScanResult scanResult = result.getScanResult();
         final List<Map<String, AttributeValue>> items = scanResult.getItems();
-        final Iterator<Map<String, AttributeValue>> it = items.iterator();
         boolean interrupted = false;
-        try {
-            do {
-                try {
-                    Map<String, AttributeValue> item = it.next();
-                    DynamoDBEntryWithSize entryWithSize = new DynamoDBEntryWithSize(
-                            item,
-                            ItemSizeCalculator.calculateItemSizeInBytes(item));
-                    queue.put(entryWithSize);
-                } catch (InterruptedException e) {
-                    interrupted = true;
-                    LOGGER.warn("interrupted when writing item to queue: "
-                            + e.getMessage());
-                }
-            } while (it.hasNext());
-        } finally {
-            if (interrupted) {
-                Thread.currentThread().interrupt();
+        for (Map<String, AttributeValue> item : items) {
+            try {
+                queue.get(result.getSegment()).put(item);
+            } catch (InterruptedException e) {
+                interrupted = true;
+                LOGGER.warn("interrupted when writing item to queue: "
+                        + e.getMessage());
             }
         }
-        return null;
+        return items.size();
     }
 }
