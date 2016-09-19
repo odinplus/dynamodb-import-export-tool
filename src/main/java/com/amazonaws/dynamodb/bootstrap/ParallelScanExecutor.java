@@ -105,6 +105,7 @@ public class ParallelScanExecutor {
         resultMap.put(segment, result);
         LOGGER.info(String.format("count = %s", count));
         if (count.get() > previousCount.get()+100000) {
+            previousCount.set(count.get());
             if (!previousResultMap.isEmpty()) {
                 try {
                     FileOutputStream fos = new FileOutputStream("/tmp/map.ser");

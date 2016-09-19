@@ -15,15 +15,18 @@ public class MapToDynamoWorker extends AbstractLogProvider {
             .getLogger(MapToDynamoWorker.class);
 
     private MapOfQueuesConsumer sourceConsumer;
-    public MapToDynamoWorker(MapOfQueuesConsumer consumer) {
+    private DynamoDBBootstrapWorker fromDBWorker;
+
+    public MapToDynamoWorker(DynamoDBBootstrapWorker worker, MapOfQueuesConsumer consumer) {
         this.sourceConsumer = consumer;
+        this.fromDBWorker = worker;
     }
 
     @Override
     public void pipe(AbstractLogConsumer consumer) throws ExecutionException, InterruptedException {
         int count = 0;
         int c = -1;
-        while (c !=0 ){
+        while (!fromDBWorker.threadPool.isTerminated()){
             List<Map<String, AttributeValue>> l =sourceConsumer.popNElementsFromQueue(25);
             c = l.size();
             count+=c;
@@ -31,6 +34,9 @@ public class MapToDynamoWorker extends AbstractLogProvider {
             result.withItems(l);
             SegmentedScanResult sresult = new SegmentedScanResult(result, 0);
             consumer.writeResult(sresult);
+            if (c==0) {
+                Thread.sleep(1000);
+            }
         }
         //shutdown(true);
         consumer.shutdown(true);

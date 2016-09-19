@@ -91,9 +91,9 @@ public class DynamoDBConsumerWorker implements Callable<Integer> {
                     try {
                         writeItemResult = client.batchWriteItem(req);
                     } catch (ProvisionedThroughputExceededException e) {
-                        LOGGER.info(String.format("%s %s", e.getMessage(), req));
+                        //LOGGER.info(String.format("%s %s", e.getMessage(), req));
                         try {
-                            LOGGER.info(String.format("Sleeping %s %s", exponentialBackoffTime, (writeItemResult == null)));
+                            LOGGER.info(String.format("%s sleeping %s", Thread.currentThread().getId(), exponentialBackoffTime));
                             Thread.sleep(exponentialBackoffTime);
                         } catch (InterruptedException ie) {
                             interrupted = true;

@@ -108,7 +108,7 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
                 break;
             }
         }
-        LOGGER.info(String.format("Values %s segments %s skipped %s indexes %s", c, sc, s, Arrays.toString(si.toArray())));
+        //LOGGER.info(String.format("Values %s segments %s skipped %s indexes %s", c, sc, s, Arrays.toString(si.toArray())));
         return l;
     }
 
