@@ -19,9 +19,7 @@ import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 
@@ -53,12 +51,22 @@ public class MapOfQueuesWorker implements Callable<Integer> {
         final List<Map<String, AttributeValue>> items = scanResult.getItems();
         boolean interrupted = false;
         for (Map<String, AttributeValue> item : items) {
-            try {
-                queue.get(result.getSegment()).put(item);
-            } catch (InterruptedException e) {
-                interrupted = true;
-                LOGGER.warn("interrupted when writing item to queue: "
-                        + e.getMessage());
+            boolean ok = false;
+            while (!ok) {
+                try {
+                    queue.get(result.getSegment()).add(item);
+                    ok = true;
+                } catch (IllegalStateException ise) {
+                    try {
+                        Thread.sleep(100);
+                        LOGGER.info(String.format("Segment %s", result.getSegment()));
+                    } catch (InterruptedException e) {
+                        interrupted = true;
+                        LOGGER.warn("interrupted when writing item to queue: "
+                                + e.getMessage());
+                    }
+
+                }
             }
         }
         return items.size();

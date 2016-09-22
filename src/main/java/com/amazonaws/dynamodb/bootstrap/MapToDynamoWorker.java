@@ -26,7 +26,7 @@ public class MapToDynamoWorker extends AbstractLogProvider {
     public void pipe(AbstractLogConsumer consumer) throws ExecutionException, InterruptedException {
         int count = 0;
         int c = -1;
-        while (!fromDBWorker.threadPool.isTerminated()){
+        while (!fromDBWorker.threadPool.isTerminated() || sourceConsumer.getQueueSize() !=0){
             List<Map<String, AttributeValue>> l =sourceConsumer.popNElementsFromQueue(25);
             c = l.size();
             count+=c;
@@ -34,9 +34,6 @@ public class MapToDynamoWorker extends AbstractLogProvider {
             result.withItems(l);
             SegmentedScanResult sresult = new SegmentedScanResult(result, 0);
             consumer.writeResult(sresult);
-            if (c==0) {
-                Thread.sleep(1000);
-            }
         }
         //shutdown(true);
         consumer.shutdown(true);

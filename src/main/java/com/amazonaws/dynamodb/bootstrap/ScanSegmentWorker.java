@@ -83,8 +83,7 @@ public class ScanSegmentWorker implements Callable<SegmentedScanResult> {
         } else {
             hasNext = false;
         }
-        LOGGER.info(result.getScannedCount());
-        LOGGER.info(result.getLastEvaluatedKey());
+        LOGGER.info(String.format("%s %s %s",request.getSegment(), result.getScannedCount(), result.getLastEvaluatedKey()));
 
         if (lastConsumedCapacity > 0) {
             rateLimiter.acquire(lastConsumedCapacity);

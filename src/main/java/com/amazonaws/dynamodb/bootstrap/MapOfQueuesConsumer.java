@@ -22,10 +22,6 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /**
- * This class implements ILogConsumer, and when called to writeResult, it will
- * submit a new job to it's ExecutorCompletionService with a new
- * LogStashQueueWorker. It will then shutdown by adding a 'poison pill' to the
- * end of the blocking queue to notify that it has reached the end of the scan.
  */
 public class MapOfQueuesConsumer extends AbstractLogConsumer {
 
@@ -53,10 +49,9 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
 
     @Override
     public List<Future<Integer>> writeResult(SegmentedScanResult result) {
-        Future<Integer> jobSubmission = null;
         List<Future<Integer>> futureList = new ArrayList<>();
         try {
-            jobSubmission = exec.submit(new MapOfQueuesWorker(queue, result));
+            exec.submit(new MapOfQueuesWorker(queue, result));
             //futureList.add(jobSubmission);
         } catch (NullPointerException npe) {
             throw new NullPointerException(
@@ -66,10 +61,17 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
     }
 
     /**
-     * Returns the blocking queue to which the LogStashQueueWorkers add results
      */
     public List<BlockingQueue<Map<String, AttributeValue>>> getQueue() {
         return queue;
+    }
+
+    public int getQueueSize() {
+        int c = 0;
+        for (BlockingQueue<Map<String, AttributeValue>> q : queue) {
+            c += q.size();
+        }
+        return c;
     }
 
     /**
@@ -82,34 +84,33 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
     }
 
     public synchronized List<Map<String, AttributeValue>> popNElementsFromQueue(int n) {
-        int c =0;
-        int s =0;
-        int sc=0;
-        ArrayList<Integer> si = new ArrayList<>();
-        for (BlockingQueue<Map<String, AttributeValue>> q : queue){
-            c+=q.size();
-        }
-        int initialCurrentIndex = currentIndex;
+        currentIndex = 0;
+        Collections.sort(queue, new Comparator<BlockingQueue<Map<String, AttributeValue>>>() {
+            @Override
+            public int compare(BlockingQueue<Map<String, AttributeValue>> lhs, BlockingQueue<Map<String, AttributeValue>> rhs) {
+                return lhs.size() > rhs.size() ? -1 : (rhs.size() > lhs.size()) ? 1 : 0;
+            }
+        });
         List<Map<String, AttributeValue>> l = new ArrayList<Map<String, AttributeValue>>();
         while (n-- != 0) {
             if (!queue.get(currentIndex).isEmpty()) {
-                si.add(currentIndex);
                 Map<String, AttributeValue> m = queue.get(currentIndex).poll();
                 l.add(m);
-                sc++;
             } else {
-                n++;
-                s++;
+                if (getQueueSize() > 0) {
+                    n++;
+                    try {
+                        Thread.sleep(100);
+                        LOGGER.debug("Sleeping");
+                    } catch (Exception e) {
+                        LOGGER.debug(e.getMessage());
+                    }
+                }
             }
             if (++currentIndex >= queue.size()) {
                 currentIndex = 0;
             }
-            if (currentIndex == initialCurrentIndex) {
-                break;
-            }
         }
-        //LOGGER.info(String.format("Values %s segments %s skipped %s indexes %s", c, sc, s, Arrays.toString(si.toArray())));
         return l;
     }
-
 }

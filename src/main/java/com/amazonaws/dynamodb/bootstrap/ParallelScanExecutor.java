@@ -14,8 +14,8 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
-import com.amazonaws.transform.MapEntry;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -44,15 +44,17 @@ public class ParallelScanExecutor {
     private final Map<Integer, ScanResult> resultMap = new HashMap<>();
     private AtomicInteger count = new AtomicInteger(0);
     private AtomicInteger previousCount = new AtomicInteger(0);
+    private final String tableName;
 
     private static final Logger LOGGER = LogManager
             .getLogger(ParallelScanExecutor.class);
 
-    public ParallelScanExecutor(Executor executor, int segments) {
+    public ParallelScanExecutor(Executor executor, int segments, String name) {
         this.exec = new ExecutorCompletionService<SegmentedScanResult>(executor);
         this.finished = new BitSet(segments);
         this.finished.clear();
         this.workers = new ScanSegmentWorker[segments];
+        this.tableName = name;
     }
 
     /**
@@ -104,18 +106,19 @@ public class ParallelScanExecutor {
         count.addAndGet(result.getScannedCount());
         resultMap.put(segment, result);
         LOGGER.info(String.format("count = %s", count));
-        if (count.get() > previousCount.get()+100000) {
+        if (count.get() > previousCount.get()+BootstrapConstants.SER_EVERY_AMOUNT) {
             previousCount.set(count.get());
             if (!previousResultMap.isEmpty()) {
                 try {
-                    FileOutputStream fos = new FileOutputStream("/tmp/map.ser");
+                    FileOutputStream fos = new FileOutputStream(String.format(BootstrapConstants.SER_FILE_NAME_FORMAT_STRING, this.tableName));
                     ObjectOutputStream oos = new ObjectOutputStream(fos);
-                    oos.writeObject(resultMap);
+                    oos.writeObject(previousResultMap);
                     oos.close();
                 } catch (Exception e) {
                     LOGGER.error(e.getMessage());
                 }
             }
+            previousResultMap.clear();
             previousResultMap.putAll(resultMap);
         }
         return ret.get();

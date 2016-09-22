@@ -109,4 +109,6 @@ public class BootstrapConstants {
      * Max connection size limit
      */
     public static final int MAX_CONN_SIZE = 5000;
+    public static final String SER_FILE_NAME_FORMAT_STRING = "/tmp/%s_map.ser";
+    public static final int SER_EVERY_AMOUNT = 100000;
 }

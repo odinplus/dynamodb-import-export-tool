@@ -72,7 +72,7 @@ public class DynamoDBTableScanTest {
 
         expectNew(ScanSegmentWorker.class, mockClient, mockRateLimiter, req)
                 .andReturn(mockSegmentWorker);
-        expectNew(ParallelScanExecutor.class, mockExec, 1).andReturn(
+        expectNew(ParallelScanExecutor.class, mockExec, 1, req.getTableName()).andReturn(
                 mockScanExecutor);
 
         mockScanExecutor.addWorker(mockSegmentWorker, 0);
@@ -80,7 +80,7 @@ public class DynamoDBTableScanTest {
         int segments2 = 3;
         ScanRequest testReq = scanner.copyScanRequest(req).withTotalSegments(
                 segments2);
-        expectNew(ParallelScanExecutor.class, mockExec, segments2).andReturn(
+        expectNew(ParallelScanExecutor.class, mockExec, segments2, req.getTableName()).andReturn(
                 mockScanExecutor);
         for (int i = 0; i < segments2; i++) {
             expectNew(ScanSegmentWorker.class, mockClient, mockRateLimiter,

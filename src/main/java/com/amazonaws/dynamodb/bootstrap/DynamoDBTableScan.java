@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
+import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
@@ -42,6 +43,7 @@ public class DynamoDBTableScan {
      * Initializes the RateLimiter and sets the AmazonDynamoDBClient.
      */
     public DynamoDBTableScan(double rateLimit, AmazonDynamoDBClient client) {
+        LOGGER.info(String.format("rateLimit %s", rateLimit));
         rateLimiter = RateLimiter.create(rateLimit);
         this.client = client;
     }
@@ -61,11 +63,11 @@ public class DynamoDBTableScan {
             int section, int totalSections) {
         final int segments = Math.max(1, numSegments);
         final ParallelScanExecutor completion = new ParallelScanExecutor(
-                executor, segments);
+                executor, segments, initialRequest.getTableName());
 
         Map<Integer, ScanResult> resultMap = new HashMap<>();
         try {
-            FileInputStream fis = new FileInputStream("map.ser");
+            FileInputStream fis = new FileInputStream(String.format(BootstrapConstants.SER_FILE_NAME_FORMAT_STRING, initialRequest.getTableName()));
             ObjectInputStream ois = new ObjectInputStream(fis);
             resultMap.putAll((Map<Integer, ScanResult>) ois.readObject());
             ois.close();
@@ -84,7 +86,7 @@ public class DynamoDBTableScan {
             ScanRequest scanSegment = copyScanRequest(initialRequest)
                     .withTotalSegments(segments).withSegment(segment);
             if (resultMap.containsKey(segment)) {
-                scanSegment = scanSegment.withExclusiveStartKey(resultMap.get(segment).getLastEvaluatedKey());
+                scanSegment.setExclusiveStartKey(resultMap.get(segment).getLastEvaluatedKey());
             }
             completion.addWorker(new ScanSegmentWorker(this.client,
                     this.rateLimiter, scanSegment), segment);
