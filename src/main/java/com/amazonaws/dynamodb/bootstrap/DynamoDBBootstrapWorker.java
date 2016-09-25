@@ -41,6 +41,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
     private int section;
     private int totalSections;
     private final boolean consistentScan;
+    private final String projectionExpression;
 
     private static final Logger LOGGER = LogManager
             .getLogger(DynamoDBBootstrapWorker.class);
@@ -55,7 +56,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
     public DynamoDBBootstrapWorker(AmazonDynamoDBClient client,
             double rateLimit, String tableName, ExecutorService exec,
             int section, int totalSections, int numSegments,
-            boolean consistentScan) throws SectionOutOfRangeException {
+            boolean consistentScan, String projectionExpression) throws SectionOutOfRangeException {
         if (section > totalSections - 1 || section < 0) {
             throw new SectionOutOfRangeException(
                     "Section of scan must be within [0...totalSections-1]");
@@ -69,6 +70,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
         this.section = section;
         this.totalSections = totalSections;
         this.consistentScan = consistentScan;
+        this.projectionExpression = projectionExpression;
 
         super.threadPool = exec;
     }
@@ -81,7 +83,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
      * @throws Exception
      */
     public DynamoDBBootstrapWorker(AmazonDynamoDBClient client,
-            double rateLimit, String tableName, int numThreads)
+            double rateLimit, String tableName, int numThreads, String projectionExpression)
             throws NullReadCapacityException {
         this.client = client;
         this.rateLimit = rateLimit;
@@ -97,6 +99,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
         if (numProcessors > numThreads) {
             numThreads = numProcessors;
         }
+        this.projectionExpression = projectionExpression;
         super.threadPool = Executors.newFixedThreadPool(numThreads);
     }
 
@@ -115,6 +118,9 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
                 .withReturnConsumedCapacity(ReturnConsumedCapacity.TOTAL)
                 .withLimit(BootstrapConstants.SCAN_LIMIT)
                 .withConsistentRead(consistentScan);
+        if (projectionExpression != null && !projectionExpression.isEmpty()) {
+               request.setProjectionExpression(projectionExpression);
+        }
 
         final ParallelScanExecutor scanService = scanner
                 .getParallelScanCompletionService(request, numSegments,

@@ -28,7 +28,7 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
     private static final Logger LOGGER = LogManager
             .getLogger(MapOfQueuesConsumer.class);
 
-    private List<BlockingQueue<Map<String, AttributeValue>>> queue;
+    private final List<BlockingQueue<Map<String, AttributeValue>>> queue;
     private int currentIndex = 0;
 
     public MapOfQueuesConsumer(ExecutorService exec, int numThreads, int numSegments) {
@@ -85,12 +85,32 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
 
     public synchronized List<Map<String, AttributeValue>> popNElementsFromQueue(int n) {
         currentIndex = 0;
-        Collections.sort(queue, new Comparator<BlockingQueue<Map<String, AttributeValue>>>() {
-            @Override
-            public int compare(BlockingQueue<Map<String, AttributeValue>> lhs, BlockingQueue<Map<String, AttributeValue>> rhs) {
-                return lhs.size() > rhs.size() ? -1 : (rhs.size() > lhs.size()) ? 1 : 0;
-            }
-        });
+        synchronized (queue) {
+            Collections.sort(queue, new Comparator<BlockingQueue<Map<String, AttributeValue>>>() {
+                @Override
+                public int compare(BlockingQueue<Map<String, AttributeValue>> lhs, BlockingQueue<Map<String, AttributeValue>> rhs) {
+                    int ls = 0;
+                    int rs = 0;
+                    try {
+                        ls = lhs.size();
+                    } catch (Exception e) {
+                        ls = 0;
+                    }
+                    try {
+                        rs = rhs.size();
+                    } catch (Exception e) {
+                        rs = 0;
+                    }
+                    if (ls > rs) {
+                        return -1;
+                    } else if (rs > ls) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                }
+            });
+        }
         List<Map<String, AttributeValue>> l = new ArrayList<Map<String, AttributeValue>>();
         while (n-- != 0) {
             if (!queue.get(currentIndex).isEmpty()) {

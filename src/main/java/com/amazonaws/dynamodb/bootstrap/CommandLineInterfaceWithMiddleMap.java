@@ -114,7 +114,7 @@ public class CommandLineInterfaceWithMiddleMap {
 
             final DynamoDBBootstrapWorker fromDBWorker = new DynamoDBBootstrapWorker(
                     sourceClient, readThroughput, sourceTable, sourceExec,
-                    params.getSection(), params.getTotalSections(), numSegments, consistentScan);
+                    params.getSection(), params.getTotalSections(), numSegments, consistentScan, null);
             final MapToDynamoWorker mapToDynamoWorker = new MapToDynamoWorker(fromDBWorker, mapOfQueuesConsumer);
 
             (new Thread() {
