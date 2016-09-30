@@ -15,9 +15,11 @@
 package com.amazonaws.dynamodb.bootstrap;
 
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -29,7 +31,7 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
             .getLogger(MapOfQueuesConsumer.class);
 
     private final List<BlockingQueue<Map<String, AttributeValue>>> queue;
-    private int currentIndex = 0;
+    private final Set<Integer> finishedQueuesIndexes;
 
     public MapOfQueuesConsumer(ExecutorService exec, int numThreads, int numSegments) {
         this.queue = Collections.synchronizedList(new ArrayList<BlockingQueue<Map<String, AttributeValue>>>(numSegments));
@@ -40,6 +42,7 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
         if (numProcessors > numThreads) {
             numThreads = numProcessors;
         }
+        this.finishedQueuesIndexes = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
         super.threadPool = exec;
         super.exec = new ExecutorCompletionService<Integer>(threadPool);
 
@@ -57,6 +60,14 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
             throw new NullPointerException(
                     "Thread pool not initialized for LogStashExecutor");
         }
+        if (result != null) {
+            ScanResult sresult = result.getScanResult();
+            if (sresult.getLastEvaluatedKey() == null
+                    || sresult.getLastEvaluatedKey().isEmpty()) {
+                finishedQueuesIndexes.add(result.getSegment());
+            }
+        }
+
         return futureList;
     }
 
@@ -74,6 +85,17 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
         return c;
     }
 
+    private List<Map.Entry<Integer, Integer>> getQueueSizes() {
+        List<Map.Entry<Integer, Integer>> l = new ArrayList<>();
+        int c = 0;
+        for (BlockingQueue<Map<String, AttributeValue>> q : queue) {
+            Map.Entry<Integer, Integer> entry = new AbstractMap.SimpleEntry<Integer, Integer>(c, q.size());
+            l.add(entry);
+            c++;
+        }
+        return l;
+    }
+
     /**
      * Shuts down the threadpool then adds a termination result to the end of
      * the queue.
@@ -84,40 +106,44 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
     }
 
     public synchronized List<Map<String, AttributeValue>> popNElementsFromQueue(int n) {
-        currentIndex = 0;
-        synchronized (queue) {
-            Collections.sort(queue, new Comparator<BlockingQueue<Map<String, AttributeValue>>>() {
-                @Override
-                public int compare(BlockingQueue<Map<String, AttributeValue>> lhs, BlockingQueue<Map<String, AttributeValue>> rhs) {
-                    int ls = 0;
-                    int rs = 0;
-                    try {
-                        ls = lhs.size();
-                    } catch (Exception e) {
-                        ls = 0;
-                    }
-                    try {
-                        rs = rhs.size();
-                    } catch (Exception e) {
-                        rs = 0;
-                    }
-                    if (ls > rs) {
-                        return -1;
-                    } else if (rs > ls) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
+        int currentIndex = 0;
+
+        List<Map.Entry<Integer, Integer>> sizes = getQueueSizes();
+        Collections.sort(sizes, new Comparator<Map.Entry<Integer, Integer>>() {
+            @Override
+            public int compare(Map.Entry<Integer, Integer> lhs, Map.Entry<Integer, Integer> rhs) {
+                int ls = 0;
+                int rs = 0;
+                try {
+                    ls = lhs.getValue();
+                } catch (Exception e) {
+                    ls = 0;
                 }
-            });
-        }
+                try {
+                    rs = rhs.getValue();
+                } catch (Exception e) {
+                    rs = 0;
+                }
+                if (ls > rs) {
+                    return -1;
+                } else if (rs > ls) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+        });
+        //LOGGER.info(Arrays.toString(sizes.toArray()));
         List<Map<String, AttributeValue>> l = new ArrayList<Map<String, AttributeValue>>();
         while (n-- != 0) {
-            if (!queue.get(currentIndex).isEmpty()) {
-                Map<String, AttributeValue> m = queue.get(currentIndex).poll();
-                l.add(m);
+            int index = sizes.get(currentIndex).getKey();
+            if (!queue.get(index).isEmpty()) {
+                Map<String, AttributeValue> m = queue.get(index).poll();
+                if (m != null) { // null if empty
+                    l.add(m);
+                }
             } else {
-                if (getQueueSize() > 0) {
+                if (getQueueSize() > 0 && !this.finishedQueuesIndexes.contains(index)) {
                     n++;
                     try {
                         Thread.sleep(100);
@@ -127,7 +153,7 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
                     }
                 }
             }
-            if (++currentIndex >= queue.size()) {
+            if (++currentIndex >= sizes.size()) {
                 currentIndex = 0;
             }
         }

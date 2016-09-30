@@ -59,7 +59,7 @@ public class MapOfQueuesWorker implements Callable<Integer> {
                 } catch (IllegalStateException ise) {
                     try {
                         Thread.sleep(100);
-                        LOGGER.info(String.format("Segment %s", result.getSegment()));
+                        //LOGGER.info(String.format("Segment %s", result.getSegment()));
                     } catch (InterruptedException e) {
                         interrupted = true;
                         LOGGER.warn("interrupted when writing item to queue: "

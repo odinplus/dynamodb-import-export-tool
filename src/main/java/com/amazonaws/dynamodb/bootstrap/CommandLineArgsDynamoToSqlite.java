@@ -102,4 +102,20 @@ public class CommandLineArgsDynamoToSqlite {
         return projectionExpression;
     }
 
+    public static final String FILTER_EXPRESSION = "--filterExpression";
+    @Parameter(names = FILTER_EXPRESSION, description = "Filter expression to use with scan. If the flag is not used it will default to empty filter")
+    private String filterExpression = null;
+
+    public String getFilterExpression() {
+        return filterExpression;
+    }
+
+    public static final String NUMBER_OF_SEGMENTS = "--numberOfSegments";
+    @Parameter(names = NUMBER_OF_SEGMENTS, description = "Total number of segments", required = false)
+    private int numberOfSegments = 1;
+
+    public int getNumberOfSegments() {
+        return numberOfSegments;
+    }
+
 }

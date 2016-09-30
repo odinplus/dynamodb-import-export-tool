@@ -57,10 +57,10 @@ public class SqliteConsumer extends AbstractLogConsumer {
     public List<Future<Integer>> writeResult(SegmentedScanResult result) {
         List<Future<Integer>> futureList = new ArrayList<>();
         List<Map<String, AttributeValue>> items = result.getScanResult().getItems();
+        LOGGER.info(String.format("%s %s", result.getSegment(), items.size()));
         boolean ok = false;
         while (!ok) {
             try {
-
                 preparedStatement.clearParameters();
                 for (Map<String, AttributeValue> item : items) {
                     preparedStatement.setString(1, item.get("uid").getS());
@@ -70,9 +70,10 @@ public class SqliteConsumer extends AbstractLogConsumer {
 
                 }
                 connection.setAutoCommit(false);
-                preparedStatement.executeBatch();
+                /*int[] counts =*/ preparedStatement.executeBatch();
                 connection.setAutoCommit(true);
                 ok = true;
+                //LOGGER.info(Arrays.toString(counts));
 
             } catch (SQLException e) {
                 LOGGER.error(e.getMessage(), e);

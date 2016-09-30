@@ -115,7 +115,7 @@ public class CommandLineInterface {
 
             final DynamoDBBootstrapWorker worker = new DynamoDBBootstrapWorker(
                     sourceClient, readThroughput, sourceTable, sourceExec,
-                    params.getSection(), params.getTotalSections(), numSegments, consistentScan, null);
+                    params.getSection(), params.getTotalSections(), numSegments, consistentScan, null, null);
 
             LOGGER.info("Starting transfer...");
             worker.pipe(consumer);

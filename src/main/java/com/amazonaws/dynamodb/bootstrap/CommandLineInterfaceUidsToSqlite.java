@@ -73,6 +73,7 @@ public class CommandLineInterfaceUidsToSqlite {
         final double readThroughputRatio = params.getReadThroughputRatio();
         final boolean consistentScan = params.getConsistentScan();
         final String projectionExpression = params.getProjectionExpression();
+        final String filterExpression = params.getFilterExpression();
 
         final ClientConfiguration sourceConfig = new ClientConfiguration().withMaxConnections(BootstrapConstants.MAX_CONN_SIZE);
 
@@ -94,6 +95,10 @@ public class CommandLineInterfaceUidsToSqlite {
         final double readThroughput = calculateThroughput(readTableDescription,
                 readThroughputRatio, true);
 
+        if (params.getNumberOfSegments() > 1) {
+            numSegments = params.getNumberOfSegments();
+        }
+
         try {
             ExecutorService sourceExec = getSourceThreadPool(numSegments);
             SqliteConsumer consumer = new SqliteConsumer(destinationDatabase,
@@ -101,10 +106,11 @@ public class CommandLineInterfaceUidsToSqlite {
 
             final DynamoDBBootstrapWorker worker = new DynamoDBBootstrapWorker(
                     sourceClient, readThroughput, sourceTable, sourceExec,
-                    params.getSection(), params.getTotalSections(), numSegments, consistentScan, projectionExpression);
+                    params.getSection(), params.getTotalSections(), numSegments, consistentScan, projectionExpression, filterExpression);
 
             LOGGER.info("Starting transfer...");
             worker.pipe(consumer);
+            Thread.sleep(10000);
             LOGGER.info("Finished Copying Table.");
         } catch (ExecutionException e) {
             LOGGER.error("Encountered exception when executing transfer.", e);
