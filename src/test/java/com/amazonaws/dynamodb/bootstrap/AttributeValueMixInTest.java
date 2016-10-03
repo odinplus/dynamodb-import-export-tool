@@ -21,6 +21,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.amazonaws.services.dynamodbv2.document.Item;
+import com.amazonaws.services.dynamodbv2.document.internal.InternalUtils;
+import com.amazonaws.services.dynamodbv2.document.internal.ItemValueConformer;
+import com.amazonaws.util.json.Jackson;
 import org.junit.Test;
 
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
@@ -52,6 +56,16 @@ public class AttributeValueMixInTest {
      */
     @Test
     public void testReturnsCapitalSWithMixin() throws JsonProcessingException {
+        Item i = new Item();
+        String json = "{\"a\":1}";
+        i = i.fromJSON(json);
+        Map<String,AttributeValue> attributes = InternalUtils.toAttributeValues(i);
+
+        /*ItemValueConformer valueConformer = new ItemValueConformer();
+
+        Map<String, Object> map = (Map<String, Object>)
+                valueConformer.transform(Jackson.fromJsonString(json, Map.class));*/
+
         String capitalS = "S";
         String lowercaseS = "s";
         ObjectMapper mapperWith = new ObjectMapper();

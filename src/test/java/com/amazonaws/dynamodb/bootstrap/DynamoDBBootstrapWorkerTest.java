@@ -63,7 +63,7 @@ public class DynamoDBBootstrapWorkerTest {
         replayAll();
 
         new DynamoDBBootstrapWorker(mockClient, rateLimit, tableName,
-                mockThreadPool, 0, 1, 10, false);
+                mockThreadPool, 0, 1, 10, false, null, null, null);
 
         verifyAll();
     }
@@ -80,7 +80,7 @@ public class DynamoDBBootstrapWorkerTest {
 
         try{
             new DynamoDBBootstrapWorker(mockClient, rateLimit, tableName,
-                    mockThreadPool, 1, 1, 10, false);
+                    mockThreadPool, 1, 1, 10, false, null, null, null);
         }catch (SectionOutOfRangeException e){
             exceptionThrown = true;
         }
@@ -100,7 +100,7 @@ public class DynamoDBBootstrapWorkerTest {
 
         replayAll();
         DynamoDBBootstrapWorker worker = new DynamoDBBootstrapWorker(
-                mockClient, rateLimit, tableName, mockThreadPool, 0, 1, 10, false);
+                mockClient, rateLimit, tableName, mockThreadPool, 0, 1, 10, false, null, null, null);
         worker.shutdown(false);
 
         verifyAll();

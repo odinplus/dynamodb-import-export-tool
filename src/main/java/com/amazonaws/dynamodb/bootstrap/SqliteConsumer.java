@@ -64,7 +64,8 @@ public class SqliteConsumer extends AbstractLogConsumer {
                 preparedStatement.clearParameters();
                 for (Map<String, AttributeValue> item : items) {
                     preparedStatement.setString(1, item.get("uid").getS());
-                    preparedStatement.setInt(2, Integer.parseInt(item.get("ver").getN()));
+                    //preparedStatement.setInt(2, Integer.parseInt(item.get("ver").getN()));
+                    preparedStatement.setString(2, item.get("cc").getS());
                     //preparedStatement.setInt(3, Integer.parseInt(item.get("vc").getN()));
                     preparedStatement.addBatch();
 

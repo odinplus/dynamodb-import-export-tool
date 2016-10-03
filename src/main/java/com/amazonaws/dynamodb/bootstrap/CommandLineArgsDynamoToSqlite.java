@@ -110,6 +110,14 @@ public class CommandLineArgsDynamoToSqlite {
         return filterExpression;
     }
 
+    public static final String EXPRESSION_ATTRIBUTE_VALUES = "--expressionAttributeValues";
+    @Parameter(names = EXPRESSION_ATTRIBUTE_VALUES, description = "Filter expression to use with scan. If the flag is not used it will default to empty filter")
+    private String expressionAttributeValues = null;
+
+    public String getExpressionAttributeValues() {
+        return expressionAttributeValues;
+    }
+
     public static final String NUMBER_OF_SEGMENTS = "--numberOfSegments";
     @Parameter(names = NUMBER_OF_SEGMENTS, description = "Total number of segments", required = false)
     private int numberOfSegments = 1;

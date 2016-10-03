@@ -15,17 +15,18 @@
 package com.amazonaws.dynamodb.bootstrap;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.dynamodb.bootstrap.exception.NullReadCapacityException;
 import com.amazonaws.dynamodb.bootstrap.exception.SectionOutOfRangeException;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughputDescription;
-import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.TableDescription;
+import com.amazonaws.services.dynamodbv2.document.Item;
+import com.amazonaws.services.dynamodbv2.document.internal.InternalUtils;
+import com.amazonaws.services.dynamodbv2.model.*;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -43,6 +44,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
     private final boolean consistentScan;
     private final String projectionExpression;
     private final String filterExpression;
+    private final String expressionAttributeValues;
 
     private static final Logger LOGGER = LogManager
             .getLogger(DynamoDBBootstrapWorker.class);
@@ -57,7 +59,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
     public DynamoDBBootstrapWorker(AmazonDynamoDBClient client,
             double rateLimit, String tableName, ExecutorService exec,
             int section, int totalSections, int numSegments,
-            boolean consistentScan, String projectionExpression, String filterExpression) throws SectionOutOfRangeException {
+            boolean consistentScan, String projectionExpression, String filterExpression, String expressionAttributeValues) throws SectionOutOfRangeException {
         if (section > totalSections - 1 || section < 0) {
             throw new SectionOutOfRangeException(
                     "Section of scan must be within [0...totalSections-1]");
@@ -73,6 +75,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
         this.consistentScan = consistentScan;
         this.projectionExpression = projectionExpression;
         this.filterExpression = filterExpression;
+        this.expressionAttributeValues = expressionAttributeValues;
 
         super.threadPool = exec;
     }
@@ -85,7 +88,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
      * @throws Exception
      */
     public DynamoDBBootstrapWorker(AmazonDynamoDBClient client,
-            double rateLimit, String tableName, int numThreads, String projectionExpression, String filterExpression)
+            double rateLimit, String tableName, int numThreads, String projectionExpression, String filterExpression, String expressionAttributeValues)
             throws NullReadCapacityException {
         this.client = client;
         this.rateLimit = rateLimit;
@@ -103,6 +106,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
         }
         this.projectionExpression = projectionExpression;
         this.filterExpression = filterExpression;
+        this.expressionAttributeValues = expressionAttributeValues;
         super.threadPool = Executors.newFixedThreadPool(numThreads);
     }
 
@@ -125,7 +129,16 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
                request.setProjectionExpression(projectionExpression);
         }
         if (filterExpression != null && !filterExpression.isEmpty()) {
+            LOGGER.info(String.format("filterExpression %s", filterExpression));
             request.setFilterExpression(filterExpression);
+
+            Item i = new Item();
+            String json = expressionAttributeValues;
+            i = i.fromJSON(json);
+            Map<String,AttributeValue> attributesValues = InternalUtils.toAttributeValues(i);
+
+            request.setExpressionAttributeValues(attributesValues);
+            LOGGER.info(String.format("%s", request));
         }
 
         final ParallelScanExecutor scanService = scanner

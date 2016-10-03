@@ -74,6 +74,7 @@ public class CommandLineInterfaceUidsToSqlite {
         final boolean consistentScan = params.getConsistentScan();
         final String projectionExpression = params.getProjectionExpression();
         final String filterExpression = params.getFilterExpression();
+        final String expressionAttributeValues = params.getExpressionAttributeValues();
 
         final ClientConfiguration sourceConfig = new ClientConfiguration().withMaxConnections(BootstrapConstants.MAX_CONN_SIZE);
 
@@ -106,7 +107,7 @@ public class CommandLineInterfaceUidsToSqlite {
 
             final DynamoDBBootstrapWorker worker = new DynamoDBBootstrapWorker(
                     sourceClient, readThroughput, sourceTable, sourceExec,
-                    params.getSection(), params.getTotalSections(), numSegments, consistentScan, projectionExpression, filterExpression);
+                    params.getSection(), params.getTotalSections(), numSegments, consistentScan, projectionExpression, filterExpression, expressionAttributeValues);
 
             LOGGER.info("Starting transfer...");
             worker.pipe(consumer);
