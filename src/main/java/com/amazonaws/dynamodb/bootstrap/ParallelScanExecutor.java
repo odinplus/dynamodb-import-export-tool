@@ -39,9 +39,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ParallelScanExecutor {
     private final BitSet finished;
     private final ScanSegmentWorker[] workers;
-    private final ExecutorCompletionService<SegmentedScanResult> exec;
-    private final Map<Integer, ScanResult> previousResultMap = new HashMap<>();
-    private final Map<Integer, ScanResult> resultMap = new HashMap<>();
+    private final ExecutorCompletionService<SegmentedResult> exec;
+    private final Map<Integer, ScanQueryCommon> previousResultMap = new HashMap<>();
+    private final Map<Integer, ScanQueryCommon> resultMap = new HashMap<>();
     private AtomicInteger count = new AtomicInteger(0);
     private AtomicInteger previousCount = new AtomicInteger(0);
     private final String tableName;
@@ -50,7 +50,7 @@ public class ParallelScanExecutor {
             .getLogger(ParallelScanExecutor.class);
 
     public ParallelScanExecutor(Executor executor, int segments, String name) {
-        this.exec = new ExecutorCompletionService<SegmentedScanResult>(executor);
+        this.exec = new ExecutorCompletionService<SegmentedResult>(executor);
         this.finished = new BitSet(segments);
         this.finished.clear();
         this.workers = new ScanSegmentWorker[segments];
@@ -89,9 +89,9 @@ public class ParallelScanExecutor {
      * @throws InterruptedException
      *             if one of the segment pages was interrupted while executing.
      */
-    public SegmentedScanResult grab() throws ExecutionException,
+    public SegmentedResult grab() throws ExecutionException,
             InterruptedException {
-        Future<SegmentedScanResult> ret = exec.take();
+        Future<SegmentedResult> ret = exec.take();
 
         int segment = ret.get().getSegment();
         ScanSegmentWorker sw = workers[segment];
@@ -102,8 +102,8 @@ public class ParallelScanExecutor {
             finishSegment(segment);
         }
 
-        ScanResult result = ret.get().getScanResult();
-        count.addAndGet(result.getScannedCount());
+        ScanQueryCommon result = ret.get().getResult();
+        count.addAndGet(((ScanResultWrapper)result).getScannedCount());
         resultMap.put(segment, result);
         LOGGER.info(String.format("count = %s", count));
         if (count.get() > previousCount.get()+BootstrapConstants.SER_EVERY_AMOUNT) {

@@ -31,7 +31,7 @@ import org.apache.log4j.Logger;
  * thread pool for parallel scans.
  * 
  */
-public class ScanSegmentWorker implements Callable<SegmentedScanResult> {
+public class ScanSegmentWorker implements Callable<SegmentedResult> {
     private final ScanRequest request;
     private boolean hasNext;
     private int lastConsumedCapacity;
@@ -57,8 +57,8 @@ public class ScanSegmentWorker implements Callable<SegmentedScanResult> {
     }
 
     @Override
-    public SegmentedScanResult call() {
-        ScanResult result = null;
+    public SegmentedResult call() {
+        ScanResultWrapper result = null;
         result = runWithBackoff();
 
         final ConsumedCapacity cc = result.getConsumedCapacity();
@@ -88,19 +88,19 @@ public class ScanSegmentWorker implements Callable<SegmentedScanResult> {
         if (lastConsumedCapacity > 0) {
             rateLimiter.acquire(lastConsumedCapacity);
         }
-        return new SegmentedScanResult(result, request.getSegment());
+        return new SegmentedResult(result, request.getSegment());
     }
 
     /**
      * begins a scan with an exponential back off if throttled.
      */
-    public ScanResult runWithBackoff() {
-        ScanResult result = null;
+    public ScanResultWrapper runWithBackoff() {
+        ScanResultWrapper result = null;
         boolean interrupted = false;
         try {
             do {
                 try {
-                    result = client.scan(request);
+                    result = new ScanResultWrapper(client.scan(request));
                 } catch (Exception e) {
                     try {
                         Thread.sleep(exponentialBackoffTime);

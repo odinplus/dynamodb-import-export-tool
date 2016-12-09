@@ -37,17 +37,17 @@ public class MapOfQueuesWorker implements Callable<Integer> {
             .getLogger(MapOfQueuesWorker.class);
 
     private final List<BlockingQueue<Map<String, AttributeValue>>> queue;
-    private final SegmentedScanResult result;
+    private final SegmentedResult result;
 
     public MapOfQueuesWorker(List<BlockingQueue<Map<String, AttributeValue>>> queue,
-                             SegmentedScanResult result) {
+                             SegmentedResult result) {
         this.queue = queue;
         this.result = result;
     }
 
     @Override
     public Integer call() {
-        final ScanResult scanResult = result.getScanResult();
+        final ScanQueryCommon scanResult = result.getResult();
         final List<Map<String, AttributeValue>> items = scanResult.getItems();
         boolean interrupted = false;
         for (Map<String, AttributeValue> item : items) {

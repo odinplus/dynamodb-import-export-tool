@@ -35,7 +35,7 @@ import java.util.concurrent.*;
 public class CommandLineInterfaceWithMiddleMap {
 
     /**
-     * Logger for the DynamoDBBootstrapWorker.
+     * Logger for the DynamoDBBootstrapScanWorker.
      */
     private static final Logger LOGGER = LogManager
             .getLogger(CommandLineInterfaceWithMiddleMap.class);
@@ -90,7 +90,7 @@ public class CommandLineInterfaceWithMiddleMap {
                 .describeTable(destinationTable).getTable();
         int numSegments = 10;
         try {
-            numSegments = DynamoDBBootstrapWorker
+            numSegments = DynamoDBBootstrapScanWorker
                     .getNumberOfSegments(readTableDescription);
         } catch (NullReadCapacityException e) {
             LOGGER.warn("Number of segments not specified - defaulting to "
@@ -102,7 +102,9 @@ public class CommandLineInterfaceWithMiddleMap {
         final double writeThroughput = calculateThroughput(
                 writeTableDescription, writeThroughputRatio, false);
 
-        numSegments = Math.min(numSegments, maxWriteThreads);
+        if (maxWriteThreads > 0) {
+            numSegments = maxWriteThreads;
+        }
 
         try {
             ExecutorService sourceExec = getSourceThreadPool(numSegments);
@@ -112,7 +114,7 @@ public class CommandLineInterfaceWithMiddleMap {
                     destinationTable, writeThroughput, destinationExec);
             final MapOfQueuesConsumer mapOfQueuesConsumer = new MapOfQueuesConsumer(middleExec, numSegments, numSegments);
 
-            final DynamoDBBootstrapWorker fromDBWorker = new DynamoDBBootstrapWorker(
+            final DynamoDBBootstrapScanWorker fromDBWorker = new DynamoDBBootstrapScanWorker(
                     sourceClient, readThroughput, sourceTable, sourceExec,
                     params.getSection(), params.getTotalSections(), numSegments, consistentScan, null, null, null);
             final MapToDynamoWorker mapToDynamoWorker = new MapToDynamoWorker(fromDBWorker, mapOfQueuesConsumer);

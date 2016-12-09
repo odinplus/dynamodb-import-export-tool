@@ -62,11 +62,11 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
      * ExecutorService.
      */
     @Override
-    public List<Future<Integer>> writeResult(SegmentedScanResult result) {
+    public List<Future<Integer>> writeResult(SegmentedResult result) {
         Future<Integer> jobSubmission = null;
         List<Future<Integer>> futureList = new ArrayList<>();
         List<BatchWriteItemRequest> batches = splitResultIntoBatches(
-                result.getScanResult(), tableName);
+                result.getResult(), tableName);
         Iterator<BatchWriteItemRequest> batchesIterator = batches.iterator();
         while (batchesIterator.hasNext()) {
             try {
@@ -87,7 +87,7 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
      * items or less each.
      */
     public static List<BatchWriteItemRequest> splitResultIntoBatches(
-            ScanResult result, String tableName) {
+            ScanQueryCommon result, String tableName) {
         List<BatchWriteItemRequest> batches = new LinkedList<BatchWriteItemRequest>();
         Iterator<Map<String, AttributeValue>> it = result.getItems().iterator();
 

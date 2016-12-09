@@ -15,9 +15,9 @@ public class MapToDynamoWorker extends AbstractLogProvider {
             .getLogger(MapToDynamoWorker.class);
 
     private MapOfQueuesConsumer sourceConsumer;
-    private DynamoDBBootstrapWorker fromDBWorker;
+    private DynamoDBBootstrapScanWorker fromDBWorker;
 
-    public MapToDynamoWorker(DynamoDBBootstrapWorker worker, MapOfQueuesConsumer consumer) {
+    public MapToDynamoWorker(DynamoDBBootstrapScanWorker worker, MapOfQueuesConsumer consumer) {
         this.sourceConsumer = consumer;
         this.fromDBWorker = worker;
     }
@@ -30,9 +30,9 @@ public class MapToDynamoWorker extends AbstractLogProvider {
             List<Map<String, AttributeValue>> l =sourceConsumer.popNElementsFromQueue(25);
             c = l.size();
             count+=c;
-            ScanResult result = new ScanResult();
+            ScanResultWrapper result = new ScanResultWrapper(new ScanResult());
             result.withItems(l);
-            SegmentedScanResult sresult = new SegmentedScanResult(result, 0);
+            SegmentedResult sresult = new SegmentedResult(result, 0);
             consumer.writeResult(sresult);
         }
         //shutdown(true);

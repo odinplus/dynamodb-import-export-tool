@@ -26,7 +26,7 @@ import org.apache.log4j.Logger;
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 
 /**
- * The interface to use with the DynamoDBBootstrapWorker.java class to consume
+ * The interface to use with the DynamoDBBootstrapScanWorker.java class to consume
  * logs and write the results somewhere.
  */
 public abstract class AbstractLogConsumer {
@@ -35,7 +35,7 @@ public abstract class AbstractLogConsumer {
     protected ExecutorService threadPool;
 
     /**
-     * Logger for the DynamoDBBootstrapWorker.
+     * Logger for the DynamoDBBootstrapScanWorker.
      */
     private static final Logger LOGGER = LogManager
             .getLogger(AbstractLogConsumer.class);
@@ -43,20 +43,13 @@ public abstract class AbstractLogConsumer {
     /**
      * Writes the result of a scan to another endpoint asynchronously. Will call
      * getWorker to determine what job to submit with the result.
-     * 
-     * @param <result>
-     *            the SegmentedScanResult to asynchronously write to another
-     *            endpoint.
+     *
      */
-    public abstract List<Future<Integer>> writeResult(SegmentedScanResult result);
+    public abstract List<Future<Integer>> writeResult(SegmentedResult result);
 
     /**
      * Shuts the thread pool down.
-     * 
-     * @param <awaitTermination>
-     *            If true, this method waits for the threads in the pool to
-     *            finish. If false, this thread pool shuts down without
-     *            finishing their current tasks.
+     *
      */
     public void shutdown(boolean awaitTermination) {
         if (awaitTermination) {

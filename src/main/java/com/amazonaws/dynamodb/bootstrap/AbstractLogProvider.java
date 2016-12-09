@@ -29,7 +29,7 @@ import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 public abstract class AbstractLogProvider {
 
     /**
-     * Logger for the DynamoDBBootstrapWorker.
+     * Logger for the DynamoDBBootstrapScanWorker.
      */
     private static final Logger LOGGER = LogManager
             .getLogger(AbstractLogProvider.class);
@@ -45,11 +45,7 @@ public abstract class AbstractLogProvider {
 
     /**
      * Shuts the thread pool down.
-     * 
-     * @param <awaitTermination>
-     *            If true, this method waits for the threads in the pool to
-     *            finish. If false, this thread pool shuts down without
-     *            finishing their current tasks.
+     *
      */
     public void shutdown(boolean awaitTermination) {
         if (awaitTermination) {

@@ -15,7 +15,6 @@
 package com.amazonaws.dynamodb.bootstrap;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -34,7 +33,7 @@ import org.apache.log4j.Logger;
  * The base class to start a parallel scan and connect the results with a
  * consumer to accept the results.
  */
-public class DynamoDBBootstrapWorker extends AbstractLogProvider {
+public class DynamoDBBootstrapScanWorker extends AbstractLogProvider {
     private final AmazonDynamoDBClient client;
     private final double rateLimit;
     private final String tableName;
@@ -47,19 +46,19 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
     private final String expressionAttributeValues;
 
     private static final Logger LOGGER = LogManager
-            .getLogger(DynamoDBBootstrapWorker.class);
+            .getLogger(DynamoDBBootstrapScanWorker.class);
 
 
     /**
-     * Creates the DynamoDBBootstrapWorker, calculates the number of segments a
+     * Creates the DynamoDBBootstrapScanWorker, calculates the number of segments a
      * table should have, and creates a thread pool to prepare to scan.
      * 
      * @throws Exception
      */
-    public DynamoDBBootstrapWorker(AmazonDynamoDBClient client,
-            double rateLimit, String tableName, ExecutorService exec,
-            int section, int totalSections, int numSegments,
-            boolean consistentScan, String projectionExpression, String filterExpression, String expressionAttributeValues) throws SectionOutOfRangeException {
+    public DynamoDBBootstrapScanWorker(AmazonDynamoDBClient client,
+                                       double rateLimit, String tableName, ExecutorService exec,
+                                       int section, int totalSections, int numSegments,
+                                       boolean consistentScan, String projectionExpression, String filterExpression, String expressionAttributeValues) throws SectionOutOfRangeException {
         if (section > totalSections - 1 || section < 0) {
             throw new SectionOutOfRangeException(
                     "Section of scan must be within [0...totalSections-1]");
@@ -81,14 +80,14 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
     }
 
     /**
-     * Creates the DynamoDBBootstrapWorker, calculates the number of segments a
+     * Creates the DynamoDBBootstrapScanWorker, calculates the number of segments a
      * table should have, and creates a thread pool to prepare to scan using an
      * eventually consistent scan.
      * 
      * @throws Exception
      */
-    public DynamoDBBootstrapWorker(AmazonDynamoDBClient client,
-            double rateLimit, String tableName, int numThreads, String projectionExpression, String filterExpression, String expressionAttributeValues)
+    public DynamoDBBootstrapScanWorker(AmazonDynamoDBClient client,
+                                       double rateLimit, String tableName, int numThreads, String projectionExpression, String filterExpression, String expressionAttributeValues)
             throws NullReadCapacityException {
         this.client = client;
         this.rateLimit = rateLimit;
@@ -121,6 +120,11 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
         final DynamoDBTableScan scanner = new DynamoDBTableScan(rateLimit,
                 client);
 
+        final QueryRequest queryRequest = new QueryRequest().withTableName(tableName)
+                .withReturnConsumedCapacity(ReturnConsumedCapacity.TOTAL)
+                .withLimit(BootstrapConstants.SCAN_LIMIT)
+                .withConsistentRead(consistentScan);
+
         final ScanRequest request = new ScanRequest().withTableName(tableName)
                 .withReturnConsumedCapacity(ReturnConsumedCapacity.TOTAL)
                 .withLimit(BootstrapConstants.SCAN_LIMIT)
@@ -147,7 +151,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
 
         List<Future<Integer>> futureList = new ArrayList<>();
         while (!scanService.finished()) {
-            SegmentedScanResult result = scanService.grab();
+            SegmentedResult result = scanService.grab();
             //LOGGER.info(result.getSegment());
             //LOGGER.info(result.getScanResult().getScannedCount());
             /*List<Future<Integer>> anotherFutureList =*/ consumer.writeResult(result);

@@ -40,7 +40,7 @@ import com.beust.jcommander.ParameterException;
 public class CommandLineInterface {
 
     /**
-     * Logger for the DynamoDBBootstrapWorker.
+     * Logger for the DynamoDBBootstrapScanWorker.
      */
     private static final Logger LOGGER = LogManager
             .getLogger(CommandLineInterface.class);
@@ -95,7 +95,7 @@ public class CommandLineInterface {
                 .describeTable(destinationTable).getTable();
         int numSegments = 10;
         try {
-            numSegments = DynamoDBBootstrapWorker
+            numSegments = DynamoDBBootstrapScanWorker
                     .getNumberOfSegments(readTableDescription);
         } catch (NullReadCapacityException e) {
             LOGGER.warn("Number of segments not specified - defaulting to "
@@ -113,7 +113,7 @@ public class CommandLineInterface {
             DynamoDBConsumer consumer = new DynamoDBConsumer(destinationClient,
                     destinationTable, writeThroughput, destinationExec);
 
-            final DynamoDBBootstrapWorker worker = new DynamoDBBootstrapWorker(
+            final DynamoDBBootstrapScanWorker worker = new DynamoDBBootstrapScanWorker(
                     sourceClient, readThroughput, sourceTable, sourceExec,
                     params.getSection(), params.getTotalSections(), numSegments, consistentScan, null, null, null);
 

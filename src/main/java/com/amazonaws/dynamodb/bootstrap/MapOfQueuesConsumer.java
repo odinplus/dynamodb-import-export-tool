@@ -51,7 +51,7 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
     }
 
     @Override
-    public List<Future<Integer>> writeResult(SegmentedScanResult result) {
+    public List<Future<Integer>> writeResult(SegmentedResult result) {
         List<Future<Integer>> futureList = new ArrayList<>();
         try {
             exec.submit(new MapOfQueuesWorker(queue, result));
@@ -61,7 +61,7 @@ public class MapOfQueuesConsumer extends AbstractLogConsumer {
                     "Thread pool not initialized for LogStashExecutor");
         }
         if (result != null) {
-            ScanResult sresult = result.getScanResult();
+            ScanQueryCommon sresult = result.getResult();
             if (sresult.getLastEvaluatedKey() == null
                     || sresult.getLastEvaluatedKey().isEmpty()) {
                 finishedQueuesIndexes.add(result.getSegment());

@@ -45,7 +45,7 @@ public class BlockingQueueConsumer extends AbstractLogConsumer {
     }
 
     @Override
-    public List<Future<Integer>> writeResult(SegmentedScanResult result) {
+    public List<Future<Integer>> writeResult(SegmentedResult result) {
         Future<Integer> jobSubmission = null;
         List<Future<Integer>> futureList = new ArrayList<>();
         try {

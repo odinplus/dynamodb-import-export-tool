@@ -21,6 +21,7 @@ import java.util.Map;
 
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.QueryResult;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 
 /**
@@ -49,6 +50,15 @@ public class ItemSizeCalculator {
     }
     
     public static int calculateScanResultSizeInBytes(ScanResult result) {
+        final Iterator<Map<String, AttributeValue>> it = result.getItems().iterator();
+        int totalBytes = 0;
+        while(it.hasNext()){
+            totalBytes += calculateItemSizeInBytes(it.next());
+        }
+        return totalBytes;
+    }
+
+    public static int calculateScanResultSizeInBytes(QueryResult result) {
         final Iterator<Map<String, AttributeValue>> it = result.getItems().iterator();
         int totalBytes = 0;
         while(it.hasNext()){

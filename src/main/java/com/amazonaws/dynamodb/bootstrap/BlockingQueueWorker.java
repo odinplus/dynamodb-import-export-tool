@@ -40,17 +40,17 @@ public class BlockingQueueWorker implements Callable<Integer> {
             .getLogger(BlockingQueueWorker.class);
 
     private final BlockingQueue<DynamoDBEntryWithSize> queue;
-    private final SegmentedScanResult result;
+    private final SegmentedResult result;
 
     public BlockingQueueWorker(BlockingQueue<DynamoDBEntryWithSize> queue,
-            SegmentedScanResult result) {
+            SegmentedResult result) {
         this.queue = queue;
         this.result = result;
     }
 
     @Override
     public Integer call() {
-        final ScanResult scanResult = result.getScanResult();
+        final ScanQueryCommon scanResult = result.getResult();
         final List<Map<String, AttributeValue>> items = scanResult.getItems();
         final Iterator<Map<String, AttributeValue>> it = items.iterator();
         boolean interrupted = false;

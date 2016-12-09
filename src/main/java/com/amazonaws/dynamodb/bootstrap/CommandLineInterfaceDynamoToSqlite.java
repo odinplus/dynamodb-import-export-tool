@@ -33,13 +33,13 @@ import java.util.concurrent.*;
  * The interface that parses the arguments, and begins to transfer data from one
  * DynamoDB table to another
  */
-public class CommandLineInterfaceUidsToSqlite {
+public class CommandLineInterfaceDynamoToSqlite {
 
     /**
-     * Logger for the DynamoDBBootstrapWorker.
+     * Logger for the DynamoDBBootstrapScanWorker.
      */
     private static final Logger LOGGER = LogManager
-            .getLogger(CommandLineInterfaceUidsToSqlite.class);
+            .getLogger(CommandLineInterfaceDynamoToSqlite.class);
 
     /**
      * Main class to begin transferring data from one DynamoDB table to another
@@ -86,7 +86,7 @@ public class CommandLineInterfaceUidsToSqlite {
                 sourceTable).getTable();
         int numSegments = 10;
         try {
-            numSegments = DynamoDBBootstrapWorker
+            numSegments = DynamoDBBootstrapScanWorker
                     .getNumberOfSegments(readTableDescription);
         } catch (NullReadCapacityException e) {
             LOGGER.warn("Number of segments not specified - defaulting to "
@@ -105,7 +105,7 @@ public class CommandLineInterfaceUidsToSqlite {
             SqliteConsumer consumer = new SqliteConsumer(destinationDatabase,
                     destinationTable);
 
-            final DynamoDBBootstrapWorker worker = new DynamoDBBootstrapWorker(
+            final DynamoDBBootstrapScanWorker worker = new DynamoDBBootstrapScanWorker(
                     sourceClient, readThroughput, sourceTable, sourceExec,
                     params.getSection(), params.getTotalSections(), numSegments, consistentScan, projectionExpression, filterExpression, expressionAttributeValues);
 

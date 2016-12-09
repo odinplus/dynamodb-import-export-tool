@@ -54,9 +54,9 @@ public class SqliteConsumer extends AbstractLogConsumer {
     /**
      */
     @Override
-    public List<Future<Integer>> writeResult(SegmentedScanResult result) {
+    public List<Future<Integer>> writeResult(SegmentedResult result) {
         List<Future<Integer>> futureList = new ArrayList<>();
-        List<Map<String, AttributeValue>> items = result.getScanResult().getItems();
+        List<Map<String, AttributeValue>> items = result.getResult().getItems();
         LOGGER.info(String.format("%s %s", result.getSegment(), items.size()));
         boolean ok = false;
         while (!ok) {
@@ -64,8 +64,8 @@ public class SqliteConsumer extends AbstractLogConsumer {
                 preparedStatement.clearParameters();
                 for (Map<String, AttributeValue> item : items) {
                     preparedStatement.setString(1, item.get("uid").getS());
-                    //preparedStatement.setInt(2, Integer.parseInt(item.get("ver").getN()));
-                    preparedStatement.setString(2, item.get("cc").getS());
+                    preparedStatement.setInt(2, Integer.parseInt(item.get("ver").getN()));
+                    //preparedStatement.setString(2, item.containsKey("cc")?item.get("cc").getS():"www");
                     //preparedStatement.setInt(3, Integer.parseInt(item.get("vc").getN()));
                     preparedStatement.addBatch();
 
